@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — ApartmentCare</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    body { background: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-wrap { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; width: 100%; }
+
+    /* Left panel */
+    .auth-left {
+      background: var(--primary);
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: flex-start;
+      padding: 60px 56px; color: white;
+    }
+    .auth-left h1 { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 14px; }
+    .auth-left p  { font-size: 15px; opacity: 0.8; max-width: 340px; line-height: 1.7; }
+    .auth-features { margin-top: 36px; display: flex; flex-direction: column; gap: 14px; }
+    .auth-feat { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    .auth-feat-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+    /* Right panel */
+    .auth-right { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 56px; background: white; }
+    .auth-logo { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    .auth-sub  { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; }
+
+    /* Tabs */
+    .tab-wrap { display: flex; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 28px; width: 100%; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-muted); border-radius: 6px; transition: all 0.15s; }
+    .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+    /* Form panels */
+    .auth-form { width: 100%; max-width: 360px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .divider { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: var(--text-light); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Demo role buttons */
+    .role-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+    .role-btn {
+      padding: 8px 6px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      background: white; cursor: pointer; font-family: var(--font); font-size: 12px;
+      font-weight: 600; color: var(--text-muted); transition: all 0.15s; text-align: center;
+    }
+    .role-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .role-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .role-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+    .demo-label { font-size: 11px; color: var(--text-light); text-align: center; margin-bottom: 10px; }
+
+    @media (max-width: 768px) {
+      .auth-wrap { grid-template-columns: 1fr; }
+      .auth-left { display: none; }
+      .auth-right { padding: 40px 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-wrap">
+
+  <!-- Left branding panel -->
+  <div class="auth-left">
+    <h1>Apartment Issue<br/>Reporting Made Easy</h1>
+    <p>Report, track, and resolve maintenance issues in your apartment complex — all in one place.</p>
+    <div class="auth-features">
+      <div class="auth-feat">
+        <div class="auth-feat-icon">📝</div>
+        <span>Submit issues in seconds</span>
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon">📊</div>
+        <span>Real-time status tracking</span>
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon">🔔</div>
+        <span>Get notified on updates</span>
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon">✅</div>
+        <span>Verify and rate resolutions</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="auth-right">
+    <div class="auth-logo">🏢 ApartmentCare</div>
+    <p class="auth-sub">Manage your apartment issues efficiently</p>
+
+    <!-- Login / Register tabs -->
+    <div class="tab-wrap" style="max-width:360px; width:100%;">
+      <button class="tab-btn active" onclick="switchTab('login', this)">Login</button>
+      <button class="tab-btn"        onclick="switchTab('register', this)">Register</button>
+    </div>
+
+    <div class="auth-form">
+
+      <!-- LOGIN PANEL -->
+      <div class="panel active" id="panel-login">
+        <p class="demo-label">Quick demo — select a role to auto-fill:</p>
+        <div class="role-btns">
+          <button class="role-btn active" onclick="fillDemo('resident', this)">
+            <span class="role-icon">🏠</span>Resident
+          </button>
+          <button class="role-btn" onclick="fillDemo('admin', this)">
+            <span class="role-icon">🏢</span>Admin
+          </button>
+          <button class="role-btn" onclick="fillDemo('staff', this)">
+            <span class="role-icon">🛠️</span>Staff
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input id="login-email" type="email" class="form-control" placeholder="you@example.com" value="resident@apartmentcare.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input id="login-password" type="password" class="form-control" placeholder="••••••••" value="password123"/>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="doLogin()">
+          Login →
+        </button>
+
+        <div class="divider">or</div>
+        <p style="text-align:center; font-size:13px; color:var(--text-muted);">
+          Don't have an account? <a href="#" style="color:var(--primary);" onclick="switchTab('register', document.querySelectorAll('.tab-btn')[1])">Register here</a>
+        </p>
+      </div>
+
+      <!-- REGISTER PANEL -->
+      <div class="panel" id="panel-register">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="req">*</span></label>
+            <input id="reg-name" type="text" class="form-control" placeholder="Arjun Kumar"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Flat No. <span class="req">*</span></label>
+            <input id="reg-flat" type="text" class="form-control" placeholder="B-204"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Block</label>
+            <select id="reg-block" class="form-control">
+              <option>A</option><option selected>B</option><option>C</option><option>D</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact</label>
+            <input id="reg-contact" type="tel" class="form-control" placeholder="9876543210"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="req">*</span></label>
+          <input id="reg-email" type="email" class="form-control" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password <span class="req">*</span></label>
+          <input id="reg-password" type="password" class="form-control" placeholder="Create a strong password"/>
+          <p class="form-hint">Minimum 8 characters</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">I am a</label>
+          <select id="reg-role" class="form-control">
+            <option value="resident">Resident</option>
+            <option value="staff">Maintenance Staff</option>
+          </select>
+          <p class="form-hint">Admin accounts are created by the association.</p>
+        </div>
+        <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="doRegister()">
+          Create Account →
+        </button>
+      </div>
+
+    </div><!-- auth-form -->
+  </div><!-- auth-right -->
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+  // Tab switching
+  function switchTab(tab, btn) {
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById("panel-" + tab).classList.add("active");
+    btn.classList.add("active");
+  }
+
+  // Demo role auto-fill
+  const demoUsers = {
+    resident: { email: "resident@apartmentcare.com", name: "Arjun Kumar", flatNo: "B-204", block: "B", role: "resident", initials: "AK" },
+    admin:    { email: "admin@apartmentcare.com",    name: "Meera Nair",  flatNo: "Admin", block: "",  role: "admin",    initials: "MN" },
+    staff:    { email: "staff@apartmentcare.com",    name: "Ravi Kumar",  flatNo: "Staff", block: "",  role: "staff",    initials: "RK" }
+  };
+
+  function fillDemo(role, btn) {
+    document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("login-email").value = demoUsers[role].email;
+    document.getElementById("login-password").value = "password123";
+    document.getElementById("login-email").dataset.role = role;
+  }
+
+  // Login logic
+  function doLogin() {
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    if (!email || !password) { showToast("Please fill in all fields", "error"); return; }
+
+    // Detect which demo user to load
+    let user = demoUsers.resident;
+    if (email.includes("admin")) user = demoUsers.admin;
+    else if (email.includes("staff")) user = demoUsers.staff;
+
+    // Save user to localStorage (backend will return a real token here)
+    localStorage.setItem("currentUser", JSON.stringify(user));
+
+    showToast("Login successful! Welcome back.", "success");
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+
+    // ── BACKEND INTEGRATION ──
+    // Replace the above with:
+    // const res = await fetch("http://localhost:5000/login", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({ email, password })
+    // });
+    // const data = await res.json();
+    // if (res.ok) {
+    //   localStorage.setItem("token", data.token);
+    //   localStorage.setItem("currentUser", JSON.stringify(data.user));
+    //   window.location.href = "dashboard.html";
+    // } else { showToast(data.message, "error"); }
+  }
+
+  // Register logic
+  function doRegister() {
+    const name     = document.getElementById("reg-name").value.trim();
+    const flat     = document.getElementById("reg-flat").value.trim();
+    const email    = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
+    const role     = document.getElementById("reg-role").value;
+
+    if (!name || !flat || !email || !password) { showToast("Please fill in all required fields", "error"); return; }
+    if (password.length < 8) { showToast("Password must be at least 8 characters", "error"); return; }
+
+    // Mock registration success
+    const newUser = {
+      name, flatNo: flat, block: document.getElementById("reg-block").value,
+      email, role, initials: name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2)
+    };
+    localStorage.setItem("currentUser", JSON.stringify(newUser));
+    showToast("Account created successfully!", "success");
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+
+    // ── BACKEND INTEGRATION ──
+    // Replace the above with:
+    // const res = await fetch("http://localhost:5000/register", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({ name, flatNo: flat, email, password, role })
+    // });
+    // const data = await res.json();
+    // if (res.ok) { showToast("Account created!", "success"); switchTab('login', ...); }
+    // else { showToast(data.message, "error"); }
+  }
+</script>
+</body>
+</html>

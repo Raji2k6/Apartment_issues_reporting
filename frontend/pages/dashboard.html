@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — ApartmentCare</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar injected by JS -->
+  <div id="sidebar-placeholder"></div>
+
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div class="topbar-right">
+        <span id="topbar-role-badge" class="badge"></span>
+        <a href="issue-form.html" class="btn btn-primary btn-sm" id="create-btn">＋ Report Issue</a>
+      </div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- Stats row -->
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterIssues('All', this)">All</button>
+        <button class="filter-btn" onclick="filterIssues('Pending', this)">Pending</button>
+        <button class="filter-btn" onclick="filterIssues('Assigned', this)">Assigned</button>
+        <button class="filter-btn" onclick="filterIssues('In Progress', this)">In Progress</button>
+        <button class="filter-btn" onclick="filterIssues('Resolved', this)">Resolved</button>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search issues…" oninput="searchIssues(this.value)"/>
+        </div>
+      </div>
+
+      <!-- Section title -->
+      <p class="section-title" id="list-title">Issues</p>
+
+      <!-- Issue list -->
+      <div class="issue-list" id="issue-list">
+        <div class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <p class="empty-title">Loading issues…</p>
+        </div>
+      </div>
+
+    </div><!-- page-content -->
+  </div><!-- main-content -->
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+  const user = getCurrentUser();
+  let allIssues = [];
+  let filtered  = [];
+
+  // ── Init ────────────────────────────────────────────────────
+  function init() {
+    initSidebar("dashboard");
+    setupForRole();
+    loadIssues();
+  }
+
+  function setupForRole() {
+    const roleBadgeMap = {
+      resident: { text: "Resident", cls: "badge-assigned" },
+      admin:    { text: "Admin",    cls: "badge-inprogress" },
+      staff:    { text: "Staff",    cls: "badge-resolved" }
+    };
+    const badge = roleBadgeMap[user.role] || roleBadgeMap.resident;
+    document.getElementById("topbar-role-badge").className = `badge ${badge.cls}`;
+    document.getElementById("topbar-role-badge").textContent = badge.text;
+
+    if (user.role === "admin") {
+      document.getElementById("page-title").textContent = "Admin Dashboard";
+      document.getElementById("list-title").textContent = "All Issues";
+      document.getElementById("create-btn").style.display = "none";
+    } else if (user.role === "staff") {
+      document.getElementById("page-title").textContent = "My Assigned Issues";
+      document.getElementById("create-btn").style.display = "none";
+      document.getElementById("list-title").textContent = "Assigned to Me";
+    } else {
+      document.getElementById("page-title").textContent = "My Dashboard";
+      document.getElementById("list-title").textContent = "My Issues";
+    }
+  }
+
+  // ── Load issues ─────────────────────────────────────────────
+  function loadIssues() {
+    allIssues = getIssues();
+
+    // Filter by role
+    if (user.role === "resident") {
+      allIssues = allIssues.filter(i => i.createdBy === "u001"); // mock: show user's issues
+    } else if (user.role === "staff") {
+      allIssues = allIssues.filter(i => i.assignedTo && i.assignedTo.includes("Ravi"));
+    }
+    // admin sees all
+
+    filtered = [...allIssues];
+    renderStats();
+    renderIssues(filtered);
+
+    // ── BACKEND INTEGRATION ──
+    // Replace the above with:
+    // const data = await apiGetIssues();
+    // allIssues = data;
+    // renderStats(); renderIssues(allIssues);
+  }
+
+  // ── Stats ────────────────────────────────────────────────────
+  function renderStats() {
+    const total      = allIssues.length;
+    const pending    = allIssues.filter(i => i.status === "Pending").length;
+    const inprogress = allIssues.filter(i => i.status === "In Progress" || i.status === "Assigned").length;
+    const resolved   = allIssues.filter(i => i.status === "Resolved" || i.status === "Closed").length;
+
+    const adminExtra = user.role === "admin"
+      ? `<div class="stat-card"><p class="stat-label">Emergency</p><div class="stat-value" style="color:var(--emergency)">${allIssues.filter(i=>i.priority==="Emergency").length}</div><p class="stat-sub">Need urgent attention</p></div>` : "";
+
+    document.getElementById("stats-grid").innerHTML = `
+      <div class="stat-card">
+        <p class="stat-label">Total Issues</p>
+        <div class="stat-value">${total}</div>
+        <p class="stat-sub">${user.role === "resident" ? "Reported by you" : "Across all blocks"}</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Pending</p>
+        <div class="stat-value" style="color:var(--pending)">${pending}</div>
+        <p class="stat-sub">Awaiting assignment</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">In Progress</p>
+        <div class="stat-value" style="color:var(--inprogress)">${inprogress}</div>
+        <p class="stat-sub">Being worked on</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Resolved</p>
+        <div class="stat-value" style="color:var(--resolved)">${resolved}</div>
+        <p class="stat-sub">Successfully closed</p>
+      </div>
+      ${adminExtra}
+    `;
+  }
+
+  // ── Render issue cards ───────────────────────────────────────
+  function renderIssues(issues) {
+    const list = document.getElementById("issue-list");
+
+    if (!issues.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <p class="empty-title">No issues found</p>
+          <p class="empty-text">Try changing your filter, or <a href="issue-form.html" style="color:var(--primary)">report a new issue</a>.</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = issues.map(issue => {
+      // Admin gets an Assign button; Staff gets a status update button
+      let actionBtn = "";
+      if (user.role === "admin" && issue.status === "Pending") {
+        actionBtn = `<button class="btn btn-outline btn-sm" onclick="event.preventDefault(); assignIssue('${issue.id}')">Assign</button>`;
+      } else if (user.role === "staff" && (issue.status === "Assigned" || issue.status === "In Progress")) {
+        actionBtn = `<button class="btn btn-outline btn-sm" onclick="event.preventDefault(); updateStatus('${issue.id}')">Update Status</button>`;
+      }
+
+      return `
+        <a href="issue-details.html?id=${issue.id}" class="issue-card">
+          <div class="issue-card-left">
+            <p class="issue-card-id">${issue.id}</p>
+            <p class="issue-card-title">${issue.title}</p>
+            <div class="issue-card-meta">
+              <span class="meta-tag">📂 ${issue.category}</span>
+              <span class="meta-tag">📍 ${issue.location}</span>
+              ${issue.assignedTo ? `<span class="meta-tag">👤 ${issue.assignedTo}</span>` : ""}
+            </div>
+          </div>
+          <div class="issue-card-right">
+            ${statusBadge(issue.status)}
+            ${priorityBadge(issue.priority)}
+            <span class="issue-date">${timeAgo(issue.createdAt)}</span>
+            ${actionBtn}
+          </div>
+        </a>`;
+    }).join("");
+  }
+
+  // ── Filter & Search ──────────────────────────────────────────
+  function filterIssues(status, btn) {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    filtered = status === "All" ? [...allIssues] : allIssues.filter(i => i.status === status);
+    const search = document.getElementById("search-input").value.toLowerCase();
+    if (search) filtered = filtered.filter(i => i.title.toLowerCase().includes(search) || i.category.toLowerCase().includes(search));
+    renderIssues(filtered);
+  }
+
+  function searchIssues(query) {
+    const q = query.toLowerCase();
+    const base = [...allIssues];
+    filtered = q ? base.filter(i => i.title.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || i.id.toLowerCase().includes(q)) : base;
+    renderIssues(filtered);
+  }
+
+  // ── Admin: Assign issue (mock) ───────────────────────────────
+  function assignIssue(id) {
+    const staff = ["Ravi (Staff)", "Priya (Staff)", "Suresh (Staff)"];
+    const pick  = staff[Math.floor(Math.random() * staff.length)];
+
+    const issues = getIssues();
+    const idx    = issues.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      issues[idx].status     = "Assigned";
+      issues[idx].assignedTo = pick;
+      saveIssues(issues);
+      showToast(`Issue assigned to ${pick}`, "success");
+      loadIssues();
+    }
+
+    // ── BACKEND INTEGRATION ──
+    // const res = await fetch(`http://localhost:5000/assign/${id}`, {
+    //   method: "PUT",
+    //   headers: { "Content-Type":"application/json", Authorization: "Bearer "+localStorage.getItem("token") },
+    //   body: JSON.stringify({ assignedTo: pick })
+    // });
+  }
+
+  // ── Staff: Update status (mock) ──────────────────────────────
+  function updateStatus(id) {
+    const next = { "Assigned": "In Progress", "In Progress": "Resolved" };
+    const issues = getIssues();
+    const idx    = issues.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      const current = issues[idx].status;
+      issues[idx].status = next[current] || current;
+      saveIssues(issues);
+      showToast(`Status updated to "${issues[idx].status}"`, "success");
+      loadIssues();
+    }
+
+    // ── BACKEND INTEGRATION ──
+    // await apiUpdateStatus(id, newStatus);
+  }
+
+  init();
+</script>
+</body>
+</html>
