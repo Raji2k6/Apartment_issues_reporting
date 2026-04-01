@@ -59,6 +59,9 @@
 <script src="../js/app.js"></script>
 <script>
   const user = getCurrentUser();
+  if (!user) {
+  window.location.href = "login.html";  // redirect if not logged in
+}
   let allIssues = [];
   let filtered  = [];
 
@@ -94,27 +97,31 @@
   }
 
   // ── Load issues ─────────────────────────────────────────────
-  function loadIssues() {
-    allIssues = getIssues();
+ async function loadIssues() {
+  try {
+    const res = await fetch("http://localhost:5000/api/issues");
+    const data = await res.json();
 
-    // Filter by role
+    allIssues = data.map(i => {
+      i.id = i._id;   // ✅ important fix
+      return i;
+    });
+
+    // Role filtering
     if (user.role === "resident") {
-      allIssues = allIssues.filter(i => i.createdBy === "u001"); // mock: show user's issues
+      allIssues = allIssues.filter(i => i.createdBy === user.name);
     } else if (user.role === "staff") {
-      allIssues = allIssues.filter(i => i.assignedTo && i.assignedTo.includes("Ravi"));
+      allIssues = allIssues.filter(i => i.assignedTo === user.name);
     }
-    // admin sees all
 
     filtered = [...allIssues];
     renderStats();
     renderIssues(filtered);
 
-    // ── BACKEND INTEGRATION ──
-    // Replace the above with:
-    // const data = await apiGetIssues();
-    // allIssues = data;
-    // renderStats(); renderIssues(allIssues);
+  } catch (err) {
+    showToast("Error loading issues", "error");
   }
+}
 
   // ── Stats ────────────────────────────────────────────────────
   function renderStats() {
@@ -213,44 +220,54 @@
   }
 
   // ── Admin: Assign issue (mock) ───────────────────────────────
-  function assignIssue(id) {
-    const staff = ["Ravi (Staff)", "Priya (Staff)", "Suresh (Staff)"];
-    const pick  = staff[Math.floor(Math.random() * staff.length)];
+ async function assignIssue(id) {
+  const staff = ["Ravi Kumar", "Priya Sharma", "Suresh Patel"];
+  const pick  = staff[Math.floor(Math.random() * staff.length)];
 
-    const issues = getIssues();
-    const idx    = issues.findIndex(i => i.id === id);
-    if (idx !== -1) {
-      issues[idx].status     = "Assigned";
-      issues[idx].assignedTo = pick;
-      saveIssues(issues);
-      showToast(`Issue assigned to ${pick}`, "success");
-      loadIssues();
-    }
+  try {
+    await fetch(`http://localhost:5000/api/issues/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        assignedTo: pick,
+        status: "Assigned"
+      })
+    });
 
-    // ── BACKEND INTEGRATION ──
-    // const res = await fetch(`http://localhost:5000/assign/${id}`, {
-    //   method: "PUT",
-    //   headers: { "Content-Type":"application/json", Authorization: "Bearer "+localStorage.getItem("token") },
-    //   body: JSON.stringify({ assignedTo: pick })
-    // });
+    showToast(`Issue assigned to ${pick}`, "success");
+    loadIssues();
+
+  } catch (err) {
+    showToast("Error assigning issue", "error");
   }
+}
 
   // ── Staff: Update status (mock) ──────────────────────────────
-  function updateStatus(id) {
-    const next = { "Assigned": "In Progress", "In Progress": "Resolved" };
-    const issues = getIssues();
-    const idx    = issues.findIndex(i => i.id === id);
-    if (idx !== -1) {
-      const current = issues[idx].status;
-      issues[idx].status = next[current] || current;
-      saveIssues(issues);
-      showToast(`Status updated to "${issues[idx].status}"`, "success");
-      loadIssues();
-    }
+  async function updateStatus(id) {
+  const issue = allIssues.find(i => i.id === id);
+  const next = { "Assigned": "In Progress", "In Progress": "Resolved" };
+  const newStatus = next[issue.status] || issue.status;
 
-    // ── BACKEND INTEGRATION ──
-    // await apiUpdateStatus(id, newStatus);
+  try {
+    await fetch(`http://localhost:5000/api/issues/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        status: newStatus
+      })
+    });
+
+    showToast(`Status updated to "${newStatus}"`, "success");
+    loadIssues();
+
+  } catch (err) {
+    showToast("Error updating status", "error");
   }
+}
 
   init();
 </script>

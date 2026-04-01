@@ -16,9 +16,8 @@ const issueSchema = new mongoose.Schema(
   },
 
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
+  type: String
+},
 
   assignedTo: {
     type: String

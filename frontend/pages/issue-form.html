@@ -75,16 +75,16 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Category <span class="req">*</span></label>
-              <select id="f-category" class="form-control">
-                <option value="">— Select category —</option>
-                <option>Plumbing</option>
-                <option>Electrical</option>
-                <option>Cleaning</option>
-                <option>Security</option>
-                <option>Structural</option>
-                <option>Internet / Cable</option>
-                <option>Other</option>
-              </select>
+              <select id ="f-category" class="form-control">
+  <option value="">— Select category —</option>
+  <option>Plumbing</option>
+  <option>Electrical</option>
+  <option>Cleaning</option>
+  <option>Security</option>
+  <option>Structural</option>
+  <option value="internet">Internet - Cable</option>
+  <option>Other</option>
+</select>
             </div>
             <div class="form-group">
               <label class="form-label">Location <span class="req">*</span></label>
@@ -233,66 +233,62 @@
   document.getElementById("f-location-specific").addEventListener("input", updateReview);
 
   // ── Submit ───────────────────────────────────────────────────
-  function submitIssue() {
-    const title    = document.getElementById("f-title").value.trim();
-    const desc     = document.getElementById("f-desc").value.trim();
-    const category = document.getElementById("f-category").value;
-    const locType  = document.getElementById("f-location-type").value;
-    const locSpec  = document.getElementById("f-location-specific").value.trim();
+async function submitIssue() {
+  const title    = document.getElementById("f-title").value.trim();
+  const desc     = document.getElementById("f-desc").value.trim();
+  const category = document.getElementById("f-category").value;
+  const locType  = document.getElementById("f-location-type").value;
+  const locSpec  = document.getElementById("f-location-specific").value.trim();
 
-    if (!title)    { showToast("Please enter an issue title", "error"); return; }
-    if (!desc)     { showToast("Please describe the issue", "error"); return; }
-    if (!category) { showToast("Please select a category", "error"); return; }
+  if (!title)    { showToast("Please enter an issue title", "error"); return; }
+  if (!desc)     { showToast("Please describe the issue", "error"); return; }
+  if (!category) { showToast("Please select a category", "error"); return; }
 
-    const user = getCurrentUser();
-    const location = locSpec ? `${locSpec} (${locType === "flat" ? user.flatNo : locType})` : (locType === "flat" ? user.flatNo : locType === "block" ? `Block ${user.block} – Common Area` : "Apartment Common Area");
+  const user = getCurrentUser();
 
-    const newIssue = {
-      id:          generateId(),
-      title, desc, category,
-      priority:    selectedPriority,
-      location,
-      status:      "Pending",
-      createdBy:   "u001",
-      assignedTo:  null,
-      createdAt:   new Date().toISOString(),
-      updatedAt:   new Date().toISOString(),
-      mediaUrls:   [],
-      feedback:    null,
-      timeline: [
-        { label: "Issue Reported", time: new Date().toLocaleString("en-IN"), note: "Submitted by resident", done: true },
-        { label: "Assigned",       time: "—", note: "Awaiting admin assignment", done: false },
-        { label: "In Progress",    time: "—", note: "", done: false },
-        { label: "Resolved",       time: "—", note: "", done: false },
-        { label: "Closed",         time: "—", note: "", done: false }
-      ]
-    };
+  const location = locSpec 
+    ? `${locSpec} (${locType === "flat" ? user.flatNo : locType})`
+    : (locType === "flat"
+        ? user.flatNo
+        : locType === "block"
+          ? `Block ${user.block} – Common Area`
+          : "Apartment Common Area");
 
-    // Save to localStorage (replace with API call later)
-    const issues = getIssues();
-    issues.unshift(newIssue);
-    saveIssues(issues);
+  try {
+    const res = await fetch("http://localhost:5000/api/issues", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        title,
+        description: desc,
+        category,
+        priority: selectedPriority,
+        location,
+        createdBy: user.name,
+        status: "Pending",
+        assignedTo: null
+      })
+    });
 
-    showToast(`Issue ${newIssue.id} submitted successfully!`, "success");
-    setTimeout(() => { window.location.href = `issue-details.html?id=${newIssue.id}`; }, 1000);
+    const data = await res.json();
 
-    // ── BACKEND INTEGRATION ──
-    // const formData = new FormData();
-    // formData.append("title", title);
-    // formData.append("description", desc);
-    // formData.append("category", category);
-    // formData.append("priority", selectedPriority);
-    // formData.append("location", location);
-    // uploadedFiles.forEach(f => formData.append("media", f));
-    // const res = await fetch("http://localhost:5000/issues", {
-    //   method: "POST",
-    //   headers: { Authorization: "Bearer " + localStorage.getItem("token") },
-    //   body: formData
-    // });
-    // const data = await res.json();
-    // if (res.ok) { window.location.href = `issue-details.html?id=${data._id}`; }
-    // else { showToast(data.message, "error"); }
+    if (res.ok) {
+      showToast("Issue submitted successfully!", "success");
+
+      setTimeout(() => {
+        window.location.href = "dashboard.html";
+      }, 1000);
+    } else {
+      showToast(data.message || "Error submitting issue", "error");
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast("Server error", "error");
   }
+}
 </script>
 </body>
 </html>

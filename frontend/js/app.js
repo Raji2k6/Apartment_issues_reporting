@@ -4,6 +4,7 @@
 // ============================================================
 
 // ── Mock current user (swap with real login data later) ──────
+const BASE_URL = "http://localhost:5000";
 const MOCK_USER = {
   id: "u001",
   name: "Arjun Kumar",
@@ -109,8 +110,16 @@ const MOCK_ISSUES = [
 
 // Get current user from localStorage (or use mock)
 function getCurrentUser() {
-  const saved = localStorage.getItem("currentUser");
-  return saved ? JSON.parse(saved) : MOCK_USER;
+  try {
+    const user = localStorage.getItem("currentUser");
+
+    if (!user || user === "undefined") return null;   // ✅ important
+
+    return JSON.parse(user);
+  } catch (err) {
+    console.error("User parse error:", err);
+    return null;
+  }
 }
 
 // Get all issues from localStorage (or use mock)

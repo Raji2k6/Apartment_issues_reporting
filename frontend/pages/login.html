@@ -210,68 +210,107 @@
   }
 
   // Login logic
-  function doLogin() {
-    const email = document.getElementById("login-email").value.trim();
-    const password = document.getElementById("login-password").value;
-    if (!email || !password) { showToast("Please fill in all fields", "error"); return; }
+async function doLogin() {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
 
-    // Detect which demo user to load
-    let user = demoUsers.resident;
-    if (email.includes("admin")) user = demoUsers.admin;
-    else if (email.includes("staff")) user = demoUsers.staff;
-
-    // Save user to localStorage (backend will return a real token here)
-    localStorage.setItem("currentUser", JSON.stringify(user));
-
-    showToast("Login successful! Welcome back.", "success");
-    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
-
-    // ── BACKEND INTEGRATION ──
-    // Replace the above with:
-    // const res = await fetch("http://localhost:5000/login", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ email, password })
-    // });
-    // const data = await res.json();
-    // if (res.ok) {
-    //   localStorage.setItem("token", data.token);
-    //   localStorage.setItem("currentUser", JSON.stringify(data.user));
-    //   window.location.href = "dashboard.html";
-    // } else { showToast(data.message, "error"); }
+  if (!email || !password) {
+    showToast("Please fill in all fields", "error");
+    return;
   }
+
+  try {
+    const res = await fetch("http://localhost:5000/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    console.log("Login response:", data); // 🔍 DEBUG
+
+    if (res.ok) {
+      // ✅ Save token (optional)
+      localStorage.setItem("token", data.token);
+
+      // ❗ IMPORTANT FIX (handle undefined user)
+      const userData = data.user || {
+        name: email,
+        email: email,
+        role: "resident"
+      };
+
+      localStorage.setItem("currentUser", JSON.stringify(userData));
+
+      showToast("Login successful!", "success");
+
+      // ✅ Redirect
+      setTimeout(() => {
+        console.log("Redirecting...");
+        window.location.href = "dashboard.html";
+      }, 800);
+
+    } else {
+      showToast(data.message || "Login failed", "error");
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast("Server error", "error");
+  }
+}
 
   // Register logic
-  function doRegister() {
-    const name     = document.getElementById("reg-name").value.trim();
-    const flat     = document.getElementById("reg-flat").value.trim();
-    const email    = document.getElementById("reg-email").value.trim();
-    const password = document.getElementById("reg-password").value;
-    const role     = document.getElementById("reg-role").value;
+  async function doRegister() {
+  const name = document.getElementById("reg-name").value.trim();
+  const flat = document.getElementById("reg-flat").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  const password = document.getElementById("reg-password").value;
 
-    if (!name || !flat || !email || !password) { showToast("Please fill in all required fields", "error"); return; }
-    if (password.length < 8) { showToast("Password must be at least 8 characters", "error"); return; }
-
-    // Mock registration success
-    const newUser = {
-      name, flatNo: flat, block: document.getElementById("reg-block").value,
-      email, role, initials: name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2)
-    };
-    localStorage.setItem("currentUser", JSON.stringify(newUser));
-    showToast("Account created successfully!", "success");
-    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
-
-    // ── BACKEND INTEGRATION ──
-    // Replace the above with:
-    // const res = await fetch("http://localhost:5000/register", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ name, flatNo: flat, email, password, role })
-    // });
-    // const data = await res.json();
-    // if (res.ok) { showToast("Account created!", "success"); switchTab('login', ...); }
-    // else { showToast(data.message, "error"); }
+  if (!name || !flat || !email || !password) {
+    showToast("Please fill in all required fields", "error");
+    return;
   }
+
+  if (password.length < 8) {
+    showToast("Password must be at least 8 characters", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://localhost:5000/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        flatNo: flat,
+        block: document.getElementById("reg-block").value,
+        role: document.getElementById("reg-role").value
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast("Account created successfully!", "success");
+
+      setTimeout(() => {
+        switchTab('login', document.querySelectorAll('.tab-btn')[0]);
+      }, 800);
+    } else {
+      showToast(data.message || "Registration failed", "error");
+    }
+
+  } catch (err) {
+    showToast("Server error", "error");
+  }
+}
 </script>
 </body>
 </html>

@@ -180,21 +180,13 @@
 
   // ── Init ─────────────────────────────────────────────────────
   function init() {
-    initSidebar("dashboard");
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
+  initSidebar("dashboard");
 
-    const issues = getIssues();
-    issue = issues.find(i => i.id === id);
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
 
-    if (!issue) {
-      document.getElementById("not-found").style.display = "block";
-      return;
-    }
-
-    document.getElementById("issue-content").style.display = "block";
-    renderPage();
-  }
+  fetchIssue(id);   // ✅ only this
+}
 
   function renderPage() {
     document.title = `${issue.id} — ApartmentCare`;
@@ -311,39 +303,78 @@
   }
 
   // ── Admin actions ────────────────────────────────────────────
-  function adminAssign() {
-    const staff = document.getElementById("assign-select").value;
-    if (!staff) { showToast("Please select a staff member", "error"); return; }
+  async function adminAssign() {
+  const staff = document.getElementById("assign-select").value;
 
-    const issues = getIssues();
-    const idx = issues.findIndex(i => i.id === issue.id);
-    issues[idx].status = "Assigned";
-    issues[idx].assignedTo = staff;
-    issues[idx].timeline[1] = { label: "Assigned", time: new Date().toLocaleString("en-IN"), note: `Assigned to ${staff}`, done: true };
-    saveIssues(issues);
-    issue = issues[idx];
+  if (!staff) {
+    showToast("Please select a staff member", "error");
+    return;
+  }
+
+  try {
+    await fetch(`http://localhost:5000/api/issues/${issue._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        assignedTo: staff,
+        status: "Assigned"
+      })
+    });
+
+    issue.assignedTo = staff;
+    issue.status = "Assigned";
+
     showToast(`Assigned to ${staff}`, "success");
     renderPage();
-  }
 
-  function changePriority() {
-    const p = document.getElementById("priority-select").value;
-    const issues = getIssues();
-    const idx = issues.findIndex(i => i.id === issue.id);
-    issues[idx].priority = p;
-    saveIssues(issues);
-    issue = issues[idx];
+  } catch (err) {
+    showToast("Error assigning issue", "error");
+  }
+}
+
+  async function changePriority() {
+  const p = document.getElementById("priority-select").value;
+
+  try {
+    await fetch(`http://localhost:5000/api/issues/${issue._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        priority: p
+      })
+    });
+
+    issue.priority = p; // UI update
     showToast(`Priority changed to ${p}`, "success");
     renderPage();
-  }
 
-  function deleteIssue() {
-    if (!confirm("Delete this issue? This cannot be undone.")) return;
-    const issues = getIssues().filter(i => i.id !== issue.id);
-    saveIssues(issues);
-    showToast("Issue deleted", "error");
-    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+  } catch (err) {
+    showToast("Error updating priority", "error");
   }
+}
+
+ async function deleteIssue() {
+  if (!confirm("Delete this issue? This cannot be undone.")) return;
+
+  try {
+    await fetch(`http://localhost:5000/api/issues/${issue._id}`, {
+      method: "DELETE"
+    });
+
+    showToast("Issue deleted", "success");
+
+    setTimeout(() => {
+      window.location.href = "dashboard.html";
+    }, 800);
+
+  } catch (err) {
+    showToast("Error deleting issue", "error");
+  }
+}
 
   // ── Feedback ──────────────────────────────────────────────────
   let selectedRating = 0;
@@ -352,43 +383,78 @@
     document.querySelectorAll(".star").forEach((s, i) => s.classList.toggle("active", i < n));
   }
 
-  function submitFeedback() {
-    if (!selectedRating) { showToast("Please select a star rating", "error"); return; }
-    const comment = document.getElementById("fb-comment").value;
-    const issues = getIssues();
-    const idx = issues.findIndex(i => i.id === issue.id);
-    issues[idx].feedback = { rating: selectedRating, comment };
-    saveIssues(issues);
-    issue = issues[idx];
-    showToast("Feedback submitted. Thank you!", "success");
-    renderPage();
+  async function submitFeedback() {
+  if (!selectedRating) {
+    showToast("Please select a star rating", "error");
+    return;
   }
 
-  // ── Utility ──────────────────────────────────────────────────
-  function updateIssueStatus(status, timelineNote) {
-    const issues = getIssues();
-    const idx = issues.findIndex(i => i.id === issue.id);
-    issues[idx].status = status;
-    issues[idx].updatedAt = new Date().toISOString();
+  const comment = document.getElementById("fb-comment").value;
 
-    // Update timeline
-    const tlMap = { "Resolved": 3, "Closed": 4, "In Progress": 2 };
-    const tlIdx = tlMap[status];
-    if (tlIdx !== undefined) {
-      for (let k = 0; k <= tlIdx; k++) {
-        issues[idx].timeline[k].done = true;
-        if (k === tlIdx) {
-          issues[idx].timeline[k].time = new Date().toLocaleString("en-IN");
-          issues[idx].timeline[k].note = timelineNote;
+  try {
+    await fetch(`http://localhost:5000/api/issues/${issue._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        feedback: {
+          rating: selectedRating,
+          comment
         }
-      }
-    }
-    saveIssues(issues);
-    issue = issues[idx];
+      })
+    });
 
-    // ── BACKEND INTEGRATION ──
-    // await apiUpdateStatus(issue.id, status);
+    showToast("Feedback submitted. Thank you!", "success");
+
+    issue.feedback = { rating: selectedRating, comment }; // UI update
+    renderPage();
+
+  } catch (err) {
+    showToast("Error submitting feedback", "error");
   }
+}
+
+ async function updateIssueStatus(status, timelineNote) {
+  try {
+    await fetch(`http://localhost:5000/api/issues/${issue._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        status: status
+      })
+    });
+
+    // ✅ update UI locally
+    issue.status = status;
+
+    // ✅ OPTIONAL (best practice)
+    fetchIssue(issue._id); // refresh from DB
+
+  } catch (err) {
+    showToast("Error updating status", "error");
+  }
+}
+
+async function fetchIssue(id) {
+  try {
+    const res = await fetch(`http://localhost:5000/api/issues/${id}`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error("Issue not found");
+
+    issue = data;
+    issue.id = data._id;
+    document.getElementById("issue-content").style.display = "block";
+    renderPage();
+
+  } catch (err) {
+    document.getElementById("not-found").style.display = "block";
+  }
+}
+
 
   init();
 </script>
