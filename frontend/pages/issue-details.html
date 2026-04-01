@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Issue Details — ApartmentCare</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    .detail-header { margin-bottom: 20px; }
+    .detail-header h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; margin: 8px 0 10px; }
+
+    .proof-upload { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; transition: border-color 0.15s; }
+    .proof-upload:hover { border-color: var(--primary); }
+
+    .feedback-stars { display: flex; gap: 6px; margin: 10px 0; }
+    .star { font-size: 24px; cursor: pointer; transition: transform 0.1s; color: var(--text-light); }
+    .star.active { color: #f59e0b; }
+    .star:hover { transform: scale(1.2); }
+
+    .status-steps { display: flex; justify-content: space-between; position: relative; margin-bottom: 28px; }
+    .status-steps::before { content: ''; position: absolute; top: 14px; left: 0; right: 0; height: 2px; background: var(--border); z-index: 0; }
+    .status-step { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 1; }
+    .step-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .step-dot.done { background: var(--resolved); border-color: var(--resolved); color: white; }
+    .step-dot.active { background: var(--primary); border-color: var(--primary); color: white; }
+    .step-label { font-size: 10px; color: var(--text-muted); text-align: center; max-width: 64px; }
+    .step-label.done, .step-label.active { color: var(--text); font-weight: 600; }
+
+    .info-box { background: var(--primary-light); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: var(--primary); margin-bottom: 14px; }
+    .warning-box { background: var(--pending-bg); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm" style="padding:6px 10px;">← Back</a>
+        <h1 id="topbar-id">Issue Details</h1>
+      </div>
+      <div class="topbar-right" id="topbar-actions"></div>
+    </div>
+
+    <div class="page-content">
+      <div id="not-found" style="display:none;">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p class="empty-title">Issue not found</p>
+          <p class="empty-text">The issue you're looking for doesn't exist or was removed.</p>
+          <br/><a href="dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+        </div>
+      </div>
+
+      <div id="issue-content" style="display:none;">
+        <!-- Status Progress Bar -->
+        <div class="card" style="margin-bottom:20px; padding:20px 24px;">
+          <p class="section-title" style="margin-bottom:16px;">Issue Progress</p>
+          <div class="status-steps" id="status-steps"></div>
+        </div>
+
+        <!-- Main grid -->
+        <div class="detail-grid">
+
+          <!-- Left: main details -->
+          <div>
+            <div class="card" style="margin-bottom:16px;">
+              <div class="detail-header">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span id="d-id" style="font-size:12px; color:var(--text-light); font-weight:500;"></span>
+                  <span id="d-status-badge"></span>
+                  <span id="d-priority-badge"></span>
+                </div>
+                <h2 id="d-title"></h2>
+                <div style="display:flex; gap:14px; font-size:13px; color:var(--text-muted); flex-wrap:wrap;">
+                  <span>📂 <span id="d-category"></span></span>
+                  <span>📍 <span id="d-location"></span></span>
+                  <span>🕐 <span id="d-date"></span></span>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:4px;">
+                <p class="section-title">Description</p>
+                <p id="d-desc" style="font-size:14px; color:var(--text-muted); line-height:1.7;"></p>
+              </div>
+
+              <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;" id="assigned-section">
+                <p class="section-title">Assignment</p>
+                <p id="d-assigned" style="font-size:14px;"></p>
+              </div>
+            </div>
+
+            <!-- Staff-only: proof upload -->
+            <div class="card" id="proof-section" style="margin-bottom:16px; display:none;">
+              <p class="section-title">Upload Proof of Resolution</p>
+              <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">Upload a photo or video showing the issue has been resolved.</p>
+              <label class="proof-upload" for="proof-input">
+                <span style="font-size:22px;">📷</span>
+                <p style="font-size:13px; margin-top:6px; color:var(--text-muted)"><strong style="color:var(--primary)">Click to upload proof</strong></p>
+                <input id="proof-input" type="file" accept="image/*,video/*" style="display:none;" onchange="handleProof(this.files)"/>
+              </label>
+              <div id="proof-preview" style="margin-top:10px;"></div>
+              <button class="btn btn-success" style="margin-top:12px; width:100%; justify-content:center;" onclick="markResolved()">
+                ✓ Mark as Resolved
+              </button>
+            </div>
+
+            <!-- Resident-only: verify resolution -->
+            <div class="card" id="verify-section" style="display:none;">
+              <p class="section-title">Verify Resolution</p>
+              <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">The staff has marked this issue as resolved. Please verify.</p>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-success" style="flex:1; justify-content:center;" onclick="verifyResolution(true)">✓ Accept & Close</button>
+                <button class="btn btn-danger"  style="flex:1; justify-content:center;" onclick="verifyResolution(false)">✕ Reject & Reopen</button>
+              </div>
+            </div>
+
+            <!-- Feedback section -->
+            <div class="card" id="feedback-section" style="display:none;">
+              <p class="section-title">Your Feedback</p>
+              <div id="feedback-content"></div>
+            </div>
+          </div>
+
+          <!-- Right: sidebar info -->
+          <div>
+
+            <!-- Meta details -->
+            <div class="card card-sm" style="margin-bottom:14px;">
+              <p class="section-title">Issue Info</p>
+              <div class="detail-row"><span class="label">Issue ID</span><span class="value" id="r-id"></span></div>
+              <div class="detail-row"><span class="label">Reported</span><span class="value" id="r-date"></span></div>
+              <div class="detail-row"><span class="label">Last updated</span><span class="value" id="r-updated"></span></div>
+              <div class="detail-row"><span class="label">Category</span><span class="value" id="r-category"></span></div>
+              <div class="detail-row"><span class="label">Priority</span><span class="value" id="r-priority"></span></div>
+              <div class="detail-row"><span class="label">Assigned to</span><span class="value" id="r-assigned"></span></div>
+            </div>
+
+            <!-- Admin: quick assign -->
+            <div class="card card-sm" id="admin-assign-card" style="margin-bottom:14px; display:none;">
+              <p class="section-title">Admin Actions</p>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label" style="font-size:12px;">Assign to Staff</label>
+                <select id="assign-select" class="form-control" style="font-size:13px;">
+                  <option value="">— Select staff member —</option>
+                  <option>Ravi Kumar</option>
+                  <option>Priya Sharma</option>
+                  <option>Suresh Patel</option>
+                  <option>External Vendor</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%; justify-content:center; font-size:13px;" onclick="adminAssign()">Assign Issue</button>
+              <div style="margin-top:8px;">
+                <label class="form-label" style="font-size:12px; margin-top:8px;">Change Priority</label>
+                <select id="priority-select" class="form-control" style="font-size:13px;">
+                  <option>Emergency</option><option>High</option><option selected>Medium</option><option>Low</option>
+                </select>
+                <button class="btn btn-outline btn-sm" style="margin-top:8px; width:100%; justify-content:center; font-size:12px;" onclick="changePriority()">Update Priority</button>
+              </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card card-sm">
+              <p class="section-title">Activity Timeline</p>
+              <div class="timeline" id="timeline"></div>
+            </div>
+
+          </div>
+        </div><!-- detail-grid -->
+      </div><!-- issue-content -->
+    </div><!-- page-content -->
+  </div>
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+  const user = getCurrentUser();
+  let issue = null;
+
+  // ── Init ─────────────────────────────────────────────────────
+  function init() {
+    initSidebar("dashboard");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    const issues = getIssues();
+    issue = issues.find(i => i.id === id);
+
+    if (!issue) {
+      document.getElementById("not-found").style.display = "block";
+      return;
+    }
+
+    document.getElementById("issue-content").style.display = "block";
+    renderPage();
+  }
+
+  function renderPage() {
+    document.title = `${issue.id} — ApartmentCare`;
+    document.getElementById("topbar-id").textContent = issue.id;
+
+    // Top actions by role
+    const actions = document.getElementById("topbar-actions");
+    if (user.role === "admin") {
+      actions.innerHTML = `<button class="btn btn-danger btn-sm" onclick="deleteIssue()">Delete Issue</button>`;
+    }
+
+    // Status steps
+    const steps = ["Pending", "Assigned", "In Progress", "Resolved", "Closed"];
+    const currentIdx = steps.indexOf(issue.status);
+    document.getElementById("status-steps").innerHTML = steps.map((s, i) => {
+      const cls = i < currentIdx ? "done" : i === currentIdx ? "active" : "";
+      const icon = i < currentIdx ? "✓" : i + 1;
+      return `<div class="status-step">
+        <div class="step-dot ${cls}">${cls === "done" ? "✓" : i + 1}</div>
+        <span class="step-label ${cls}">${s}</span>
+      </div>`;
+    }).join("");
+
+    // Main fields
+    document.getElementById("d-id").textContent = issue.id;
+    document.getElementById("d-status-badge").innerHTML = statusBadge(issue.status);
+    document.getElementById("d-priority-badge").innerHTML = priorityBadge(issue.priority);
+    document.getElementById("d-title").textContent = issue.title;
+    document.getElementById("d-category").textContent = issue.category;
+    document.getElementById("d-location").textContent = issue.location;
+    document.getElementById("d-date").textContent = formatDate(issue.createdAt);
+    document.getElementById("d-desc").textContent = issue.desc || issue.description || "No description provided.";
+    document.getElementById("d-assigned").innerHTML = issue.assignedTo
+      ? `<strong>${issue.assignedTo}</strong>`
+      : `<span style="color:var(--text-muted)">Not yet assigned — awaiting admin action.</span>`;
+
+    // Right sidebar
+    document.getElementById("r-id").textContent = issue.id;
+    document.getElementById("r-date").textContent = formatDate(issue.createdAt);
+    document.getElementById("r-updated").textContent = formatDate(issue.updatedAt);
+    document.getElementById("r-category").textContent = issue.category;
+    document.getElementById("r-priority").innerHTML = priorityBadge(issue.priority);
+    document.getElementById("r-assigned").textContent = issue.assignedTo || "Unassigned";
+
+    // Timeline
+    document.getElementById("timeline").innerHTML = (issue.timeline || []).map(t => `
+      <div class="tl-item">
+        <div class="tl-dot ${t.done ? 'done' : 'inactive'}"></div>
+        <p class="tl-title" style="color:${t.done ? 'var(--text)' : 'var(--text-light)'}">${t.label}</p>
+        <p class="tl-time">${t.time}</p>
+        ${t.note ? `<p class="tl-note">${t.note}</p>` : ""}
+      </div>`).join("");
+
+    // Role-specific sections
+    if (user.role === "admin") {
+      document.getElementById("admin-assign-card").style.display = "block";
+      const sel = document.getElementById("priority-select");
+      sel.value = issue.priority;
+    }
+
+    if (user.role === "staff" && (issue.status === "Assigned" || issue.status === "In Progress")) {
+      document.getElementById("proof-section").style.display = "block";
+    }
+
+    if (user.role === "resident" && issue.status === "Resolved") {
+      document.getElementById("verify-section").style.display = "block";
+    }
+
+    if (issue.feedback) {
+      const fb = document.getElementById("feedback-section");
+      fb.style.display = "block";
+      const stars = "★".repeat(issue.feedback.rating) + "☆".repeat(5 - issue.feedback.rating);
+      fb.querySelector("#feedback-content").innerHTML = `
+        <p style="font-size:20px; color:#f59e0b; letter-spacing:2px;">${stars}</p>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:6px;">"${issue.feedback.comment}"</p>`;
+    } else if (user.role === "resident" && issue.status === "Closed") {
+      const fb = document.getElementById("feedback-section");
+      fb.style.display = "block";
+      fb.querySelector("#feedback-content").innerHTML = `
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">How was the resolution? Your feedback helps improve the service.</p>
+        <div class="feedback-stars" id="stars">
+          ${[1,2,3,4,5].map(n => `<span class="star" onclick="selectStar(${n})">★</span>`).join("")}
+        </div>
+        <textarea id="fb-comment" class="form-control" style="font-size:13px;" placeholder="Any comments? (optional)"></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px; width:100%; justify-content:center;" onclick="submitFeedback()">Submit Feedback</button>`;
+    }
+  }
+
+  // ── Proof upload ─────────────────────────────────────────────
+  function handleProof(files) {
+    if (!files.length) return;
+    document.getElementById("proof-preview").innerHTML =
+      `<div style="font-size:13px; color:var(--resolved);">✓ ${files[0].name} ready to upload</div>`;
+  }
+
+  function markResolved() {
+    updateIssueStatus("Resolved", "Staff marked as resolved. Awaiting resident confirmation.");
+    showToast("Issue marked as Resolved!", "success");
+    document.getElementById("proof-section").style.display = "none";
+    renderPage();
+  }
+
+  // ── Resident: verify ─────────────────────────────────────────
+  function verifyResolution(accept) {
+    if (accept) {
+      updateIssueStatus("Closed", "Issue verified and closed by resident.");
+      showToast("Issue closed. Thank you for verifying!", "success");
+    } else {
+      updateIssueStatus("In Progress", "Resident rejected resolution — issue reopened.");
+      showToast("Issue reopened. We'll look into it again.", "error");
+    }
+    document.getElementById("verify-section").style.display = "none";
+    renderPage();
+  }
+
+  // ── Admin actions ────────────────────────────────────────────
+  function adminAssign() {
+    const staff = document.getElementById("assign-select").value;
+    if (!staff) { showToast("Please select a staff member", "error"); return; }
+
+    const issues = getIssues();
+    const idx = issues.findIndex(i => i.id === issue.id);
+    issues[idx].status = "Assigned";
+    issues[idx].assignedTo = staff;
+    issues[idx].timeline[1] = { label: "Assigned", time: new Date().toLocaleString("en-IN"), note: `Assigned to ${staff}`, done: true };
+    saveIssues(issues);
+    issue = issues[idx];
+    showToast(`Assigned to ${staff}`, "success");
+    renderPage();
+  }
+
+  function changePriority() {
+    const p = document.getElementById("priority-select").value;
+    const issues = getIssues();
+    const idx = issues.findIndex(i => i.id === issue.id);
+    issues[idx].priority = p;
+    saveIssues(issues);
+    issue = issues[idx];
+    showToast(`Priority changed to ${p}`, "success");
+    renderPage();
+  }
+
+  function deleteIssue() {
+    if (!confirm("Delete this issue? This cannot be undone.")) return;
+    const issues = getIssues().filter(i => i.id !== issue.id);
+    saveIssues(issues);
+    showToast("Issue deleted", "error");
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 800);
+  }
+
+  // ── Feedback ──────────────────────────────────────────────────
+  let selectedRating = 0;
+  function selectStar(n) {
+    selectedRating = n;
+    document.querySelectorAll(".star").forEach((s, i) => s.classList.toggle("active", i < n));
+  }
+
+  function submitFeedback() {
+    if (!selectedRating) { showToast("Please select a star rating", "error"); return; }
+    const comment = document.getElementById("fb-comment").value;
+    const issues = getIssues();
+    const idx = issues.findIndex(i => i.id === issue.id);
+    issues[idx].feedback = { rating: selectedRating, comment };
+    saveIssues(issues);
+    issue = issues[idx];
+    showToast("Feedback submitted. Thank you!", "success");
+    renderPage();
+  }
+
+  // ── Utility ──────────────────────────────────────────────────
+  function updateIssueStatus(status, timelineNote) {
+    const issues = getIssues();
+    const idx = issues.findIndex(i => i.id === issue.id);
+    issues[idx].status = status;
+    issues[idx].updatedAt = new Date().toISOString();
+
+    // Update timeline
+    const tlMap = { "Resolved": 3, "Closed": 4, "In Progress": 2 };
+    const tlIdx = tlMap[status];
+    if (tlIdx !== undefined) {
+      for (let k = 0; k <= tlIdx; k++) {
+        issues[idx].timeline[k].done = true;
+        if (k === tlIdx) {
+          issues[idx].timeline[k].time = new Date().toLocaleString("en-IN");
+          issues[idx].timeline[k].note = timelineNote;
+        }
+      }
+    }
+    saveIssues(issues);
+    issue = issues[idx];
+
+    // ── BACKEND INTEGRATION ──
+    // await apiUpdateStatus(issue.id, status);
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report Issue — ApartmentCare</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; max-width: 720px; }
+    .form-section { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .form-section:last-of-type { border-bottom: none; margin-bottom: 0; }
+    .form-section-title { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 18px; }
+
+    .priority-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .priority-card {
+      border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px 10px;
+      text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .priority-card:hover { border-color: var(--primary); }
+    .priority-card.selected { border-color: currentColor; background: var(--bg); }
+    .priority-card[data-priority="Emergency"] { color: var(--emergency); }
+    .priority-card[data-priority="High"]      { color: var(--high); }
+    .priority-card[data-priority="Medium"]    { color: var(--medium); }
+    .priority-card[data-priority="Low"]       { color: var(--low); }
+    .priority-card.selected[data-priority="Emergency"] { background: var(--emergency-bg); }
+    .priority-card.selected[data-priority="High"]      { background: var(--high-bg); }
+    .priority-card.selected[data-priority="Medium"]    { background: var(--medium-bg); }
+    .priority-card.selected[data-priority="Low"]       { background: var(--low-bg); }
+    .priority-icon { font-size: 20px; margin-bottom: 4px; }
+    .priority-name { font-size: 12px; font-weight: 700; }
+    .priority-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .file-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .file-chip { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .file-chip button { background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 14px; line-height: 1; }
+    .file-chip button:hover { color: #ef4444; }
+
+    .form-actions { display: flex; gap: 12px; margin-top: 28px; }
+    .char-count { float: right; font-size: 11px; color: var(--text-light); }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar-placeholder"></div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm" style="padding:6px 10px;">← Back</a>
+        <h1>Report an Issue</h1>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="form-card">
+
+        <!-- Section 1: Basic info -->
+        <div class="form-section">
+          <p class="form-section-title">📝 Issue Details</p>
+
+          <div class="form-group">
+            <label class="form-label">Issue Title <span class="req">*</span></label>
+            <input id="f-title" type="text" class="form-control" placeholder="e.g. Water leakage from ceiling in bathroom" maxlength="100"
+              oninput="document.getElementById('title-count').textContent = this.value.length + '/100'"/>
+            <p class="form-hint"><span id="title-count">0/100</span></p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description <span class="req">*</span></label>
+            <textarea id="f-desc" class="form-control" placeholder="Describe the issue in detail — when it started, how severe it is, any relevant details…" maxlength="500"
+              oninput="document.getElementById('desc-count').textContent = this.value.length + '/500'"></textarea>
+            <p class="form-hint"><span id="desc-count">0/500</span> characters</p>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Category <span class="req">*</span></label>
+              <select id="f-category" class="form-control">
+                <option value="">— Select category —</option>
+                <option>Plumbing</option>
+                <option>Electrical</option>
+                <option>Cleaning</option>
+                <option>Security</option>
+                <option>Structural</option>
+                <option>Internet / Cable</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location <span class="req">*</span></label>
+              <select id="f-location-type" class="form-control" onchange="updateLocationHint()">
+                <option value="flat">My Flat</option>
+                <option value="block">Block Common Area</option>
+                <option value="common">Apartment Common Area</option>
+              </select>
+              <p class="form-hint" id="location-hint">Issue is inside your flat</p>
+            </div>
+          </div>
+
+          <div class="form-group" id="specific-location-wrap">
+            <label class="form-label">Specific Location</label>
+            <input id="f-location-specific" type="text" class="form-control" placeholder="e.g. Bathroom, Kitchen, Near Gate 2…"/>
+          </div>
+        </div>
+
+        <!-- Section 2: Priority -->
+        <div class="form-section">
+          <p class="form-section-title">🚦 Priority Level</p>
+          <div class="priority-grid">
+            <div class="priority-card" data-priority="Emergency" onclick="selectPriority(this)">
+              <div class="priority-icon">🔴</div>
+              <div class="priority-name">Emergency</div>
+              <div class="priority-desc">Immediate danger</div>
+            </div>
+            <div class="priority-card selected" data-priority="High" onclick="selectPriority(this)">
+              <div class="priority-icon">🟠</div>
+              <div class="priority-name">High</div>
+              <div class="priority-desc">Urgent attention</div>
+            </div>
+            <div class="priority-card" data-priority="Medium" onclick="selectPriority(this)">
+              <div class="priority-icon">🟡</div>
+              <div class="priority-name">Medium</div>
+              <div class="priority-desc">Fix within a week</div>
+            </div>
+            <div class="priority-card" data-priority="Low" onclick="selectPriority(this)">
+              <div class="priority-icon">🟢</div>
+              <div class="priority-name">Low</div>
+              <div class="priority-desc">When convenient</div>
+            </div>
+          </div>
+          <p class="form-hint" style="margin-top:10px;">Selected: <strong id="priority-label">High</strong></p>
+        </div>
+
+        <!-- Section 3: Media upload -->
+        <div class="form-section">
+          <p class="form-section-title">📷 Attach Photos / Videos</p>
+          <label class="upload-area" for="file-input">
+            <div class="upload-icon">📎</div>
+            <p class="upload-text"><strong>Click to upload</strong> or drag and drop</p>
+            <p class="form-hint" style="margin-top:4px;">JPG, PNG, MP4 — max 10MB each</p>
+            <input id="file-input" type="file" multiple accept="image/*,video/*" onchange="handleFiles(this.files)"/>
+          </label>
+          <div class="file-preview" id="file-preview"></div>
+        </div>
+
+        <!-- Section 4: Review & Submit -->
+        <div>
+          <p class="form-section-title">✅ Review & Submit</p>
+          <div id="review-box" style="background:var(--bg); border-radius:var(--radius-sm); padding:14px 16px; font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+            Fill in the details above to see a summary before submitting.
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="submitIssue()">Submit Issue →</button>
+            <a href="dashboard.html" class="btn btn-outline">Cancel</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+  let selectedPriority = "High";
+  let uploadedFiles = [];
+
+  // ── Sidebar ──────────────────────────────────────────────────
+  initSidebar("issue-form");
+
+  // ── Priority selection ───────────────────────────────────────
+  function selectPriority(card) {
+    document.querySelectorAll(".priority-card").forEach(c => c.classList.remove("selected"));
+    card.classList.add("selected");
+    selectedPriority = card.dataset.priority;
+    document.getElementById("priority-label").textContent = selectedPriority;
+    updateReview();
+  }
+
+  // ── Location hint ────────────────────────────────────────────
+  function updateLocationHint() {
+    const val = document.getElementById("f-location-type").value;
+    const hints = {
+      flat:   "Issue is inside your flat",
+      block:  "Issue in your block's common area (staircase, corridor…)",
+      common: "Issue in apartment-wide area (gate, parking, lobby…)"
+    };
+    document.getElementById("location-hint").textContent = hints[val] || "";
+    updateReview();
+  }
+
+  // ── File upload ──────────────────────────────────────────────
+  function handleFiles(files) {
+    uploadedFiles = [...uploadedFiles, ...files];
+    const preview = document.getElementById("file-preview");
+    preview.innerHTML = uploadedFiles.map((f, i) =>
+      `<div class="file-chip">
+        📄 ${f.name.length > 20 ? f.name.slice(0,18) + "…" : f.name}
+        <button onclick="removeFile(${i})">✕</button>
+       </div>`
+    ).join("");
+  }
+
+  function removeFile(i) {
+    uploadedFiles.splice(i, 1);
+    handleFiles([]);  // re-render
+  }
+
+  // ── Live review summary ──────────────────────────────────────
+  function updateReview() {
+    const title    = document.getElementById("f-title").value;
+    const cat      = document.getElementById("f-category").value;
+    const locType  = document.getElementById("f-location-type").value;
+    const locSpec  = document.getElementById("f-location-specific").value;
+    if (!title && !cat) return;
+
+    const locDisplay = locSpec ? `${locSpec} (${locType === "flat" ? "My Flat" : locType === "block" ? "Block Area" : "Common Area"})` : (locType === "flat" ? "My Flat" : locType === "block" ? "Block Common Area" : "Apartment Common Area");
+
+    document.getElementById("review-box").innerHTML = `
+      <div style="display:grid; gap:6px;">
+        <div style="display:flex; justify-content:space-between;"><span>Title</span><strong style="color:var(--text)">${title || "—"}</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>Category</span><strong style="color:var(--text)">${cat || "—"}</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>Location</span><strong style="color:var(--text)">${locDisplay}</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>Priority</span>${priorityBadge(selectedPriority)}</div>
+        <div style="display:flex; justify-content:space-between;"><span>Status</span>${statusBadge("Pending")}</div>
+        <div style="display:flex; justify-content:space-between;"><span>Files</span><strong style="color:var(--text)">${uploadedFiles.length ? uploadedFiles.length + " file(s)" : "None"}</strong></div>
+      </div>`;
+  }
+
+  document.getElementById("f-title").addEventListener("input", updateReview);
+  document.getElementById("f-category").addEventListener("change", updateReview);
+  document.getElementById("f-location-specific").addEventListener("input", updateReview);
+
+  // ── Submit ───────────────────────────────────────────────────
+  function submitIssue() {
+    const title    = document.getElementById("f-title").value.trim();
+    const desc     = document.getElementById("f-desc").value.trim();
+    const category = document.getElementById("f-category").value;
+    const locType  = document.getElementById("f-location-type").value;
+    const locSpec  = document.getElementById("f-location-specific").value.trim();
+
+    if (!title)    { showToast("Please enter an issue title", "error"); return; }
+    if (!desc)     { showToast("Please describe the issue", "error"); return; }
+    if (!category) { showToast("Please select a category", "error"); return; }
+
+    const user = getCurrentUser();
+    const location = locSpec ? `${locSpec} (${locType === "flat" ? user.flatNo : locType})` : (locType === "flat" ? user.flatNo : locType === "block" ? `Block ${user.block} – Common Area` : "Apartment Common Area");
+
+    const newIssue = {
+      id:          generateId(),
+      title, desc, category,
+      priority:    selectedPriority,
+      location,
+      status:      "Pending",
+      createdBy:   "u001",
+      assignedTo:  null,
+      createdAt:   new Date().toISOString(),
+      updatedAt:   new Date().toISOString(),
+      mediaUrls:   [],
+      feedback:    null,
+      timeline: [
+        { label: "Issue Reported", time: new Date().toLocaleString("en-IN"), note: "Submitted by resident", done: true },
+        { label: "Assigned",       time: "—", note: "Awaiting admin assignment", done: false },
+        { label: "In Progress",    time: "—", note: "", done: false },
+        { label: "Resolved",       time: "—", note: "", done: false },
+        { label: "Closed",         time: "—", note: "", done: false }
+      ]
+    };
+
+    // Save to localStorage (replace with API call later)
+    const issues = getIssues();
+    issues.unshift(newIssue);
+    saveIssues(issues);
+
+    showToast(`Issue ${newIssue.id} submitted successfully!`, "success");
+    setTimeout(() => { window.location.href = `issue-details.html?id=${newIssue.id}`; }, 1000);
+
+    // ── BACKEND INTEGRATION ──
+    // const formData = new FormData();
+    // formData.append("title", title);
+    // formData.append("description", desc);
+    // formData.append("category", category);
+    // formData.append("priority", selectedPriority);
+    // formData.append("location", location);
+    // uploadedFiles.forEach(f => formData.append("media", f));
+    // const res = await fetch("http://localhost:5000/issues", {
+    //   method: "POST",
+    //   headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    //   body: formData
+    // });
+    // const data = await res.json();
+    // if (res.ok) { window.location.href = `issue-details.html?id=${data._id}`; }
+    // else { showToast(data.message, "error"); }
+  }
+</script>
+</body>
+</html>
