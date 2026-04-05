@@ -8,7 +8,7 @@ const router = express.Router();
 // POST /auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role, flatNo, block } = req.body;
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -16,7 +16,7 @@ router.post("/register", async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, password: hashed });
+    const user = await User.create({ name, email, password: hashed, role: role || 'resident', flatNo, block });
 
     const token = jwt.sign(
       { id: user._id, email: user.email },
@@ -24,7 +24,18 @@ router.post("/register", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.status(201).json({ token });
+    // Return user data without password
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      flatNo: user.flatNo,
+      block: user.block,
+      initials: user.initials
+    };
+
+    res.status(201).json({ token, user: userData });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -51,7 +62,18 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.status(200).json({ token });
+    // Return user data without password
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      flatNo: user.flatNo,
+      block: user.block,
+      initials: user.initials
+    };
+
+    res.status(200).json({ token, user: userData });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }

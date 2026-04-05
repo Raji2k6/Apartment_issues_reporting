@@ -2,12 +2,25 @@ const express = require("express");
 const router = express.Router();
 
 const Issue = require("../models/Issue");
+const User = require("../models/User");
+
+
+// ==============================
+// GET ALL STAFF (SPECIFIC ROUTE - must be before /:id)
+// ==============================
+router.get("/staff/list", async (req, res) => {
+  try {
+    const staff = await User.find({ role: "staff" }).select("name");
+    res.json(staff);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 
 // ==============================
 // CREATE ISSUE
 // ==============================
-// WHY: Create new issue from frontend
 router.post("/", async (req, res) => {
   try {
     const issue = await Issue.create(req.body);
@@ -19,9 +32,37 @@ router.post("/", async (req, res) => {
 
 
 // ==============================
-// UPDATE ISSUE STATUS
+// GET ALL ISSUES (GENERIC GET - must be before /:id generic route)
 // ==============================
-// WHY: Change status (Pending → In Progress → Resolved)
+router.get("/", async (req, res) => {
+  try {
+    const issues = await Issue.find();
+    res.json(issues);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// ==============================
+// ROUTES WITH :id PARAMETER (these go AFTER non-parameterized routes)
+// ==============================
+
+// GET ISSUE BY ID
+router.get("/:id", async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) {
+      return res.status(404).json({ message: "Issue not found" });
+    }
+    res.json(issue);
+  } catch (err) {
+    res.status(400).json({ message: "Invalid issue ID" });
+  }
+});
+
+
+// UPDATE ISSUE STATUS
 router.put("/:id/status", async (req, res) => {
   try {
     const issue = await Issue.findByIdAndUpdate(
@@ -41,16 +82,13 @@ router.put("/:id/status", async (req, res) => {
 });
 
 
-// ==============================
 // ASSIGN ISSUE
-// ==============================
-// WHY: Assign issue to staff
 router.put("/:id/assign", async (req, res) => {
   try {
     const issue = await Issue.findByIdAndUpdate(
       req.params.id,
       {
-        assignedTo: req.body.assignedTo, // string for now
+        assignedTo: req.body.assignedTo,
         status: "Assigned"
       },
       { returnDocument: "after" }
@@ -67,29 +105,36 @@ router.put("/:id/assign", async (req, res) => {
 });
 
 
-// ==============================
-// TEST STATUS (BROWSER ONLY)
-// ==============================
-// WHY: Browser can't send PUT → simulate using GET
-
-
-
-// ==============================
-// TEST ASSIGN (BROWSER ONLY)
-// ==============================
-
-
-
-// ==============================
-// GET ALL ISSUES
-// ==============================
-// IMPORTANT: keep this LAST
-router.get("/", async (req, res) => {
+// UPDATE ISSUE (GENERIC PUT)
+router.put("/:id", async (req, res) => {
   try {
-    const issues = await Issue.find();
-    res.json(issues);
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { returnDocument: "after" }
+    );
+
+    if (!issue) {
+      return res.status(404).json({ message: "Issue not found" });
+    }
+
+    res.json(issue);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(400).json({ message: "Invalid issue ID or update data" });
+  }
+});
+
+
+// DELETE ISSUE
+router.delete("/:id", async (req, res) => {
+  try {
+    const issue = await Issue.findByIdAndDelete(req.params.id);
+    if (!issue) {
+      return res.status(404).json({ message: "Issue not found" });
+    }
+    res.json({ message: "Issue deleted" });
+  } catch (err) {
+    res.status(400).json({ message: "Invalid issue ID" });
   }
 });
 

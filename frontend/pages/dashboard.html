@@ -29,12 +29,12 @@
       <div class="stats-grid" id="stats-grid"></div>
 
       <!-- Filter bar -->
-      <div class="filter-bar">
-        <button class="filter-btn active" onclick="filterIssues('All', this)">All</button>
-        <button class="filter-btn" onclick="filterIssues('Pending', this)">Pending</button>
-        <button class="filter-btn" onclick="filterIssues('Assigned', this)">Assigned</button>
-        <button class="filter-btn" onclick="filterIssues('In Progress', this)">In Progress</button>
-        <button class="filter-btn" onclick="filterIssues('Resolved', this)">Resolved</button>
+      <div class="filter-bar" id="filter-bar">
+        <button class="filter-btn active" id="all-btn" onclick="filterIssues('All', this)">All</button>
+        <button class="filter-btn" id="pending-btn" onclick="filterIssues('Pending', this)">Pending</button>
+        <button class="filter-btn" id="assigned-btn" onclick="filterIssues('Assigned', this)">Assigned</button>
+        <button class="filter-btn" id="inprogress-btn" onclick="filterIssues('In Progress', this)">In Progress</button>
+        <button class="filter-btn" id="resolved-btn" onclick="filterIssues('Resolved', this)">Resolved</button>
         <div class="search-box">
           <span class="search-icon">🔍</span>
           <input type="text" id="search-input" placeholder="Search issues…" oninput="searchIssues(this.value)"/>
@@ -55,6 +55,82 @@
     </div><!-- page-content -->
   </div><!-- main-content -->
 </div>
+
+<!-- Assignment Modal -->
+<div id="assign-modal" class="modal" style="display: none;" onclick="if(event.target.id === 'assign-modal') closeAssignModal()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Assign Issue to Staff</h2>
+      <button class="modal-close" onclick="closeAssignModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="assign-issue-title" style="margin-bottom: 20px;"></p>
+      <label for="staff-select" style="display: block; margin-bottom: 10px; font-weight: 500;">Select Staff Member:</label>
+      <select id="staff-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+        <option value="">-- Choose a staff member --</option>
+      </select>
+    </div>
+    <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-outline" onclick="closeAssignModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAssignment()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 90%;
+  }
+  
+  .modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .modal-footer {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    background: #f9f9f9;
+    border-radius: 0 0 8px 8px;
+  }
+</style>
 
 <script src="../js/app.js"></script>
 <script>
@@ -87,12 +163,17 @@
       document.getElementById("list-title").textContent = "All Issues";
       document.getElementById("create-btn").style.display = "none";
     } else if (user.role === "staff") {
-      document.getElementById("page-title").textContent = "My Assigned Issues";
+      document.getElementById("page-title").textContent = "Staff Dashboard";
       document.getElementById("create-btn").style.display = "none";
-      document.getElementById("list-title").textContent = "Assigned to Me";
+      document.getElementById("list-title").textContent = "Assigned Issues";
+      // Staff hides "All" and "Pending" button
+      document.getElementById("all-btn").style.display = "none";
+      document.getElementById("pending-btn").style.display = "none";
     } else {
-      document.getElementById("page-title").textContent = "My Dashboard";
+      document.getElementById("page-title").textContent = "Resident Dashboard";
       document.getElementById("list-title").textContent = "My Issues";
+      // Resident hides "All" button
+      document.getElementById("all-btn").style.display = "none";
     }
   }
 
@@ -100,18 +181,31 @@
  async function loadIssues() {
   try {
     const res = await fetch("http://localhost:5000/api/issues");
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
+
+    console.log("All issues fetched:", data.length, "Current user:", user.name, user.email);
 
     allIssues = data.map(i => {
       i.id = i._id;   // ✅ important fix
       return i;
     });
 
-    // Role filtering
+    // Role filtering - improved to handle email and name variations
     if (user.role === "resident") {
-      allIssues = allIssues.filter(i => i.createdBy === user.name);
+      allIssues = allIssues.filter(i => {
+        // Match by name OR email to handle data inconsistency
+        return i.createdBy === user.name || i.createdBy === user.email;
+      });
+      console.log("Filtered for resident:", allIssues.length, "issues");
     } else if (user.role === "staff") {
-      allIssues = allIssues.filter(i => i.assignedTo === user.name);
+      allIssues = allIssues.filter(i => {
+        // Staff sees only issues assigned to them by exact name match
+        return i.assignedTo === user.name;
+      });
+      console.log("Filtered for staff:", allIssues.length, "issues");
     }
 
     filtered = [...allIssues];
@@ -119,43 +213,91 @@
     renderIssues(filtered);
 
   } catch (err) {
-    showToast("Error loading issues", "error");
+    console.error("Load issues error:", err);
+    showToast("Error loading issues: " + err.message, "error");
   }
 }
 
   // ── Stats ────────────────────────────────────────────────────
   function renderStats() {
-    const total      = allIssues.length;
-    const pending    = allIssues.filter(i => i.status === "Pending").length;
-    const inprogress = allIssues.filter(i => i.status === "In Progress" || i.status === "Assigned").length;
-    const resolved   = allIssues.filter(i => i.status === "Resolved" || i.status === "Closed").length;
+    const total       = allIssues.length;
+    const pending     = allIssues.filter(i => i.status === "Pending").length;
+    const assigned    = allIssues.filter(i => i.status === "Assigned").length;
+    const inprogress  = allIssues.filter(i => i.status === "In Progress").length;
+    const resolved    = allIssues.filter(i => i.status === "Resolved").length;
+    const closed      = allIssues.filter(i => i.status === "Closed").length;
+    const openCount   = pending + assigned + inprogress;
+    const assignedResolved = assigned + resolved + closed;
+    const staffResolved = resolved + closed;
 
     const adminExtra = user.role === "admin"
       ? `<div class="stat-card"><p class="stat-label">Emergency</p><div class="stat-value" style="color:var(--emergency)">${allIssues.filter(i=>i.priority==="Emergency").length}</div><p class="stat-sub">Need urgent attention</p></div>` : "";
 
-    document.getElementById("stats-grid").innerHTML = `
-      <div class="stat-card">
-        <p class="stat-label">Total Issues</p>
-        <div class="stat-value">${total}</div>
-        <p class="stat-sub">${user.role === "resident" ? "Reported by you" : "Across all blocks"}</p>
-      </div>
-      <div class="stat-card">
-        <p class="stat-label">Pending</p>
-        <div class="stat-value" style="color:var(--pending)">${pending}</div>
-        <p class="stat-sub">Awaiting assignment</p>
-      </div>
-      <div class="stat-card">
-        <p class="stat-label">In Progress</p>
-        <div class="stat-value" style="color:var(--inprogress)">${inprogress}</div>
-        <p class="stat-sub">Being worked on</p>
-      </div>
-      <div class="stat-card">
-        <p class="stat-label">Resolved</p>
-        <div class="stat-value" style="color:var(--resolved)">${resolved}</div>
-        <p class="stat-sub">Successfully closed</p>
-      </div>
-      ${adminExtra}
-    `;
+    let statsHTML = ``;
+
+    if (user.role === "resident") {
+      statsHTML = `
+        <div class="stat-card">
+          <p class="stat-label">My Open Issues</p>
+          <div class="stat-value">${openCount}</div>
+          <p class="stat-sub">Pending, assigned or in progress</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Pending</p>
+          <div class="stat-value" style="color:var(--pending)">${pending}</div>
+          <p class="stat-sub">Waiting for admin/staff action</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Assigned / Resolved</p>
+          <div class="stat-value" style="color:var(--inprogress)">${assignedResolved}</div>
+          <p class="stat-sub">Work in progress or awaiting verification</p>
+        </div>
+      `;
+    } else if (user.role === "staff") {
+      statsHTML = `
+        <div class="stat-card">
+          <p class="stat-label">Assigned Issues</p>
+          <div class="stat-value">${assigned + inprogress}</div>
+          <p class="stat-sub">Issues currently assigned to you</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">In Progress</p>
+          <div class="stat-value" style="color:var(--inprogress)">${inprogress}</div>
+          <p class="stat-sub">Work you are handling</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Resolved</p>
+          <div class="stat-value" style="color:var(--resolved)">${staffResolved}</div>
+          <p class="stat-sub">Issues ready for resident verification</p>
+        </div>
+      `;
+    } else {
+      statsHTML = `
+        <div class="stat-card">
+          <p class="stat-label">Total Issues</p>
+          <div class="stat-value">${total}</div>
+          <p class="stat-sub">Across all apartments</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Pending</p>
+          <div class="stat-value" style="color:var(--pending)">${pending}</div>
+          <p class="stat-sub">Awaiting assignment</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">In Progress</p>
+          <div class="stat-value" style="color:var(--inprogress)">${inprogress}</div>
+          <p class="stat-sub">Being worked on</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Resolved</p>
+          <div class="stat-value" style="color:var(--resolved)">${resolved + closed}</div>
+          <p class="stat-sub">Resolved or closed</p>
+        </div>
+        ${adminExtra}
+      `;
+    }
+
+    document.getElementById("stats-grid").innerHTML = statsHTML;
   }
 
   // ── Render issue cards ───────────────────────────────────────
@@ -173,7 +315,7 @@
     }
 
     list.innerHTML = issues.map(issue => {
-      // Admin gets an Assign button; Staff gets a status update button
+      // Role-based action buttons
       let actionBtn = "";
       if (user.role === "admin" && issue.status === "Pending") {
         actionBtn = `<button class="btn btn-outline btn-sm" onclick="event.preventDefault(); assignIssue('${issue.id}')">Assign</button>`;
@@ -219,39 +361,98 @@
     renderIssues(filtered);
   }
 
-  // ── Admin: Assign issue (mock) ───────────────────────────────
- async function assignIssue(id) {
-  const staff = ["Ravi Kumar", "Priya Sharma", "Suresh Patel"];
-  const pick  = staff[Math.floor(Math.random() * staff.length)];
+  // ── Admin: Assign issue (with modal) ───────────────────────────
+  let currentAssignIssueId = null;
 
-  try {
-    await fetch(`http://localhost:5000/api/issues/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        assignedTo: pick,
-        status: "Assigned"
-      })
-    });
-
-    showToast(`Issue assigned to ${pick}`, "success");
-    loadIssues();
-
-  } catch (err) {
-    showToast("Error assigning issue", "error");
+  async function assignIssue(id) {
+    currentAssignIssueId = id;
+    
+    // Find issue title
+    const issue = allIssues.find(i => i.id === id);
+    if (!issue) return;
+    
+    // Set modal title
+    document.getElementById("assign-issue-title").textContent = `Issue: ${issue.title}`;
+    
+    // Fetch staff list
+    try {
+      const res = await fetch("http://localhost:5000/api/issues/staff/list");
+      const staff = await res.json();
+      
+      const select = document.getElementById("staff-select");
+      select.innerHTML = '<option value="">-- Choose a staff member --</option>';
+      staff.forEach(s => {
+        const option = document.createElement("option");
+        option.value = s.name;
+        option.textContent = s.name;
+        select.appendChild(option);
+      });
+    } catch (err) {
+      showToast("Error loading staff list", "error");
+      return;
+    }
+    
+    // Show modal
+    document.getElementById("assign-modal").style.display = "flex";
   }
-}
 
-  // ── Staff: Update status (mock) ──────────────────────────────
+  function closeAssignModal() {
+    document.getElementById("assign-modal").style.display = "none";
+    document.getElementById("staff-select").value = "";
+    currentAssignIssueId = null;
+  }
+
+  async function confirmAssignment() {
+    const selectedStaff = document.getElementById("staff-select").value;
+    
+    if (!selectedStaff) {
+      showToast("Please select a staff member", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/issues/${currentAssignIssueId}/assign`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          assignedTo: selectedStaff
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to assign");
+
+      showToast(`Issue assigned to ${selectedStaff}`, "success");
+      closeAssignModal();
+      loadIssues();
+
+    } catch (err) {
+      showToast("Error assigning issue", "error");
+    }
+  }
+
+  // ── Staff: Update status ──────────────────────────────────────
   async function updateStatus(id) {
   const issue = allIssues.find(i => i.id === id);
-  const next = { "Assigned": "In Progress", "In Progress": "Resolved" };
-  const newStatus = next[issue.status] || issue.status;
+  if (!issue) {
+    console.error("Issue not found. ID:", id, "AllIssues:", allIssues.map(i => i.id));
+    showToast("Issue not found", "error");
+    return;
+  }
+
+  // Define status progression
+  const progression = { "Assigned": "In Progress", "In Progress": "Resolved" };
+  const newStatus = progression[issue.status];
+
+  if (!newStatus) {
+    showToast(`Cannot update status from "${issue.status}" - needs Assigned or In Progress`, "error");
+    return;
+  }
 
   try {
-    await fetch(`http://localhost:5000/api/issues/${id}`, {
+    console.log(`Updating issue ${id} from ${issue.status} → ${newStatus}`);
+    const res = await fetch(`http://localhost:5000/api/issues/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json"
@@ -261,11 +462,21 @@
       })
     });
 
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
+    }
+
+    const updated = await res.json();
+    console.log("Update successful:", updated);
     showToast(`Status updated to "${newStatus}"`, "success");
+    
+    // Reload issues from server to get fresh data
     loadIssues();
 
   } catch (err) {
-    showToast("Error updating status", "error");
+    console.error("Update status error:", err);
+    showToast("Error updating status: " + err.message, "error");
   }
 }
 

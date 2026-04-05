@@ -143,11 +143,7 @@
               <div class="form-group" style="margin-bottom:10px;">
                 <label class="form-label" style="font-size:12px;">Assign to Staff</label>
                 <select id="assign-select" class="form-control" style="font-size:13px;">
-                  <option value="">— Select staff member —</option>
-                  <option>Ravi Kumar</option>
-                  <option>Priya Sharma</option>
-                  <option>Suresh Patel</option>
-                  <option>External Vendor</option>
+                  <option value="">— Loading staff... —</option>
                 </select>
               </div>
               <button class="btn btn-primary" style="width:100%; justify-content:center; font-size:13px;" onclick="adminAssign()">Assign Issue</button>
@@ -186,6 +182,7 @@
   const id = params.get("id");
 
   fetchIssue(id);   // ✅ only this
+  loadStaffList();  // Load staff dropdown for admin
 }
 
   function renderPage() {
@@ -303,6 +300,29 @@
   }
 
   // ── Admin actions ────────────────────────────────────────────
+  async function loadStaffList() {
+  try {
+    const res = await fetch("http://localhost:5000/api/issues/staff/list");
+    const staff = await res.json();
+
+    const select = document.getElementById("assign-select");
+    select.innerHTML = `<option value="">— Select staff member —</option>`;
+
+    staff.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.name;
+      opt.textContent = s.name;
+      select.appendChild(opt);
+    });
+
+    console.log("Staff list loaded:", staff);
+  } catch (err) {
+    console.error("Error loading staff list:", err);
+    document.getElementById("assign-select").innerHTML = 
+      `<option value="">— Error loading staff —</option>`;
+  }
+}
+
   async function adminAssign() {
   const staff = document.getElementById("assign-select").value;
 
@@ -440,17 +460,23 @@
 
 async function fetchIssue(id) {
   try {
+    console.log("Fetching issue:", id);
     const res = await fetch(`http://localhost:5000/api/issues/${id}`);
     const data = await res.json();
 
-    if (!res.ok) throw new Error("Issue not found");
+    if (!res.ok) {
+      console.error("Fetch failed:", res.status, data);
+      throw new Error("Issue not found");
+    }
 
+    console.log("Issue fetched:", data);
     issue = data;
     issue.id = data._id;
     document.getElementById("issue-content").style.display = "block";
     renderPage();
 
   } catch (err) {
+    console.error("Fetch issue error:", err);
     document.getElementById("not-found").style.display = "block";
   }
 }
