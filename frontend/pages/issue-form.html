@@ -255,22 +255,26 @@ async function submitIssue() {
           : "Apartment Common Area");
 
   try {
-    const res = await fetch("http://localhost:5000/api/issues", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        title,
-        description: desc,
-        category,
-        priority: selectedPriority,
-        location,
-        createdBy: user.name,
-        status: "Pending",
-        assignedTo: null
-      })
-    });
+    const formData = new FormData();
+
+formData.append("title", title);
+formData.append("description", desc);
+formData.append("category", category);
+formData.append("priority", selectedPriority);
+formData.append("location", location);
+formData.append("createdBy", user.name);
+formData.append("status", "Pending");
+formData.append("assignedTo", "");
+
+// 🔥 ADD FILES
+uploadedFiles.forEach(file => {
+  formData.append("file", file); // MUST match backend
+});
+
+const res = await fetch("http://localhost:5000/api/issues", {
+  method: "POST",
+  body: formData
+});
 
     const data = await res.json();
 

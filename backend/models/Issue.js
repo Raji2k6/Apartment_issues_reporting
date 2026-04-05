@@ -9,7 +9,7 @@ const issueSchema = new mongoose.Schema(
   location: { type: String },
 
   media: [String], // file paths (for now)
-
+  fileUrl: [String],
   status: {
     type: String,
     default: "Pending"

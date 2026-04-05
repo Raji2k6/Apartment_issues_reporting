@@ -1,3 +1,4 @@
+const upload = require("../middleware/upload");
 const express = require("express");
 const router = express.Router();
 
@@ -21,11 +22,24 @@ router.get("/staff/list", async (req, res) => {
 // ==============================
 // CREATE ISSUE
 // ==============================
-router.post("/", async (req, res) => {
+router.post("/", upload.array("file", 5), async (req, res) => {
   try {
-    const issue = await Issue.create(req.body);
+    const { title, description, category } = req.body;
+
+    const issue = new Issue({
+      title,
+      description,
+      category,
+      fileUrl: req.files && req.files.length > 0 
+  ? req.files.map(file => file.path) 
+  : [],
+    });
+
+    await issue.save();
+
     res.status(201).json(issue);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 });
