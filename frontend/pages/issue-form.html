@@ -255,26 +255,27 @@ async function submitIssue() {
           : "Apartment Common Area");
 
   try {
+    // Create FormData to handle file uploads
     const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", desc);
+    formData.append("category", category);
+    formData.append("priority", selectedPriority);
+    formData.append("location", location);
+    formData.append("createdBy", user.name);
+    formData.append("status", "Pending");
+    formData.append("assignedTo", null);
 
-formData.append("title", title);
-formData.append("description", desc);
-formData.append("category", category);
-formData.append("priority", selectedPriority);
-formData.append("location", location);
-formData.append("createdBy", user.name);
-formData.append("status", "Pending");
-formData.append("assignedTo", "");
+    // Add files to FormData
+    uploadedFiles.forEach(file => {
+      formData.append("images", file);
+    });
 
-// 🔥 ADD FILES
-uploadedFiles.forEach(file => {
-  formData.append("file", file); // MUST match backend
-});
-
-const res = await fetch("http://localhost:5000/api/issues", {
-  method: "POST",
-  body: formData
-});
+    const res = await fetch("http://localhost:5000/api/issues", {
+      method: "POST",
+      body: formData
+      // Don't set Content-Type header - browser will set it with boundary
+    });
 
     const data = await res.json();
 
