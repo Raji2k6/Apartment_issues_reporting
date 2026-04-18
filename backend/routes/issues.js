@@ -1,9 +1,9 @@
-const upload = require("../middleware/upload");
 const express = require("express");
 const router = express.Router();
 
 const Issue = require("../models/Issue");
 const User = require("../models/User");
+const upload = require("../middleware/uploadMiddleware");
 
 
 // ==============================
@@ -20,26 +20,21 @@ router.get("/staff/list", async (req, res) => {
 
 
 // ==============================
-// CREATE ISSUE
+// CREATE ISSUE (with image upload)
 // ==============================
-router.post("/", upload.array("file", 5), async (req, res) => {
+router.post("/", upload.array("images", 5), async (req, res) => {
   try {
-    const { title, description, category } = req.body;
+    // Extract image URLs from uploaded files
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
 
-    const issue = new Issue({
-      title,
-      description,
-      category,
-      fileUrl: req.files && req.files.length > 0 
-  ? req.files.map(file => file.path) 
-  : [],
-    });
+    const issueData = {
+      ...req.body,
+      media: imageUrls
+    };
 
-    await issue.save();
-
+    const issue = await Issue.create(issueData);
     res.status(201).json(issue);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -120,11 +115,22 @@ router.put("/:id/assign", async (req, res) => {
 
 
 // UPDATE ISSUE (GENERIC PUT)
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.array("images", 5), async (req, res) => {
   try {
+    // If new images are uploaded, add them to existing media
+    let updateData = { ...req.body };
+    
+    if (req.files && req.files.length > 0) {
+      const newImageUrls = req.files.map(file => file.path);
+      // Get existing issue to check if it has media
+      const existingIssue = await Issue.findById(req.params.id);
+      const existingMedia = existingIssue?.media || [];
+      updateData.media = [...existingMedia, ...newImageUrls];
+    }
+
     const issue = await Issue.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { returnDocument: "after" }
     );
 
